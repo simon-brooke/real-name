@@ -2,7 +2,7 @@
   "Resolve real names from user names in a platform independent fashion."
   (:require [clojure.java.io :refer [reader]]
             [clojure.java.shell :refer [sh]]
-            [clojure.string :refer [split trim]])
+            [clojure.string :refer [split starts-with? trim]])
   (:gen-class))
 
 (defn- mac-os-x
@@ -20,24 +20,44 @@
                :os-name (System/getProperty "os.name")
                :os-version (System/getProperty "os.version")})))))
 
+(defn delimited-record->map
+  "Split this `record` into fields delimited by this `delimiter-pattern` and
+   return it as a map with these `keys`."
+  [^String record ^java.util.regex.Pattern delimiter-pattern keys]
+  (apply assoc
+         (cons {} (interleave keys (split record  delimiter-pattern)))))
+
+(defn process-gecos
+  "Process this `gecos` field into a map of its sub-fields. See
+   https://en.wikipedia.org/wiki/Gecos_field"
+  [gecos]
+  (delimited-record->map gecos #"," [:real-name :address :work-phone :home-phone :other]))
+
+(defn process-passwd-line
+  "Process this `line` from a passwd file"
+  [line]
+  (let [record (delimited-record->map line #":" [:uname :pass :uid :gid :gecos :sh])]
+    (when record (assoc record :gecos (process-gecos (:gecos record))))))
+
+(defn process-passwd
+  "Process the password file into a map whose keys are user names and whose
+   values are maps of associated records from lines in the file."
+  []
+  (reduce #(assoc %1 (:uname %2) %2)
+          {}
+          (map process-passwd-line 
+               (remove #(starts-with? % "#")(line-seq (reader "/etc/passwd"))))))
+
 (defn- unix
   "Generic unix, parse the GECOS field of the passwd record matching `username`."
   ([username]
-   (unix username 4))
-  ([username gecos-field]
-   (let [passwd (map #(split %  #":") (line-seq (reader "/etc/passwd")))
-         userrecord (first (filter #(= (first %) username) passwd))
-         gecos (when userrecord (split (nth userrecord gecos-field) #","))]
-     (if gecos (trim (first gecos))
-         (throw (ex-info (format "Real name for `%s` not found" username)
-                         {:username username
-                          :known-users (map
-                                        first
-                                        (filter
-                                         #(> (read-string (nth % 2)) 999)
-                                         (filter #(= (count %) 7) passwd)))
-                          :os-name (System/getProperty "os.name")
-                          :os-version (System/getProperty "os.version")}))))))
+   (let [real-name (-> ((process-passwd) username) :gecos :real-name)]
+     (if real-name
+       real-name
+       (throw (ex-info (format "Real name for `%s` not found." username)
+                       {:username username
+                        :os-name (System/getProperty "os.name")
+                        :os-version (System/getProperty "os.version")}))))))
 
 (defn- windows7+
   "Very experimental, probably wrong."
