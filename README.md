@@ -22,7 +22,7 @@ there did not seem to be any other ways to do it.
 If building from Leiningen, add to project dependencies
 
 ```clojure
-[cc.journeyman/real-name "0.0.1"]
+[org.clojars.simon_brooke/real-name "1.0.1"]
 ```
 
 Add the following requirement to your namespace:

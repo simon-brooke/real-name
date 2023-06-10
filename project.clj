@@ -1,4 +1,4 @@
-(defproject org.clojars.simon_brooke/real-name "1.0.0"
+(defproject org.clojars.simon_brooke/real-name "1.0.1"
   :codox {:metadata {:doc "**TODO**: write docs"
                      :doc/format :markdown}
           :output-path "docs"
