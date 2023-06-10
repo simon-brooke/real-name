@@ -2,7 +2,9 @@
   "Resolve real names from user names in a platform independent fashion."
   (:require [clojure.java.io :refer [reader]]
             [clojure.java.shell :refer [sh]]
-            [clojure.string :refer [split starts-with? trim]])
+            [clojure.string :refer [lower-case split starts-with? trim]])
+  (:import [java.io StringReader]
+           [java.util Locale])
   (:gen-class))
 
 (defn- mac-os-x
@@ -59,18 +61,72 @@
                         :os-name (System/getProperty "os.name")
                         :os-version (System/getProperty "os.version")}))))))
 
+(def full-name-in-locale
+  "Microsoft's own translations of `Full Name` into a variety of languages,
+   taken from their language portal. Clearly there must be some os-call that
+   they're using to resolve the translation, but I don't know it; so this is
+   the best I can currently do."
+  {"ar" "الاسم الكامل"
+   "bg" "Пълно име"
+   "ca" "Nom complet"
+   "cs" "Celé jméno"
+   "da" "Fulde navn"
+   "de" "Vollständiger Name"
+   "el" "Ονοματεπώνυμο" ;; Greek
+   "en" "Full Name"
+   "es" "Nombre completo"
+   "et" "Täielik nimi" ;; Microsoft also uses 'Täisnimi' in some contexts!
+   "fi" "Koko nimi"
+   "fr" "Nom complet"
+   "ga" "Ainm agus Sloinne" ;; Microsoft also uses 'Ainm iomlán' in some contexts!
+   "hu" "Teljes név"
+   "is" "Fullt Nafn"
+   "it" "Nome completo"
+   "jp" "氏名" ;; Microsoft also uses 'フル ネーム' and '完全名' in some contexts!
+   "lt" "Vardas, pavardė" ;; or 'Visas pavadinimas', or 'Visas vardas', or 'vardas ir pavardė'!
+   "lv" "Pilns vārds" ;; or 'Pilnais vārds', or 'Pilns nosaukums'
+   "nb" "Fullt navn" ;; Norse
+   "nl" "Volledige naam"
+   "nn" "Fullt namn" ;; also Norse
+   "no" "Fullt namn" ;; also Norse
+   "pl" "Imię i nazwisko" ;; or 'Pełna nazwa'
+   "pt" "Nome completo"
+   "ro" "Nume complet"
+   "ru" "Полное название" ;; or 'ФИО', or 'Полное имя'
+   "se" "Fullständigt namn"
+   "sk" "Celé meno"
+   "sl" "Polno ime" ;; or 'ime in priimek'
+   "tr" "Tam Adı" ;; or 'Tam Ad', or 'Adı-soyadı', or 'Ad ve soyadı', or 'Adı ve Soyadı'
+   "uk" "Повне ім’я" ;; or 'Ім'я та прізвище'
+   "zh" "全名"})
+
 (defn- windows7+
-  "Very experimental, probably wrong."
+  "Very experimental, probably wrong, certainly works only in selected
+   locales."
   [username]
-  (let [response (sh "net" "user" username "/domain" "|" "FIND" "/I" "Full Name")]
+  (let [response (sh "net" "user" username)
+        full-name (full-name-in-locale
+                   (first (split (str (Locale/getDefault)) #"_")))]
     (if (zero? (:exit response))
-      (trim (:out response))
+      (trim
+       (subs
+        (first (filter
+                ;; Cast to lower-case because although in English,
+                ;; Microsoft uses the capitalisation 'Full Name',
+                ;; according to their own language portal in other
+                ;; languages they don't; and I don't trust them!
+                #(starts-with? (lower-case %) (lower-case full-name))
+                (line-seq (reader (StringReader. (:out response))))))
+        (count full-name)))
       (throw (ex-info
               (format "Real name for `%s` not found" username)
               {:username username
                :response response
+               :locale (Locale/getDefault)
+               :localised-key full-name
                :os-name (System/getProperty "os.name")
                :os-version (System/getProperty "os.version")})))))
+
 
 (defn username->real-name
   "Given this `username`, return the associated real name if found; else

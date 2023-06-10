@@ -49,7 +49,8 @@ cc.journeyman.real-name.core=> (get-real-name "simon")
 
 ## Errors
 
-If it doesn't work, an `ex-info` will be thrown, with at least the keys `:username` and `:os-name`, and a (hopefully useful) diagnostic message:
+If it doesn't work, an `ex-info` will be thrown, with at least the keys `:username` 
+and `:os-name`, and a (hopefully useful) diagnostic message:
 
 ```clojure
 cc.journeyman.real-name.core=> (get-real-name "fred")
@@ -77,6 +78,21 @@ If it does not work, please raise an issue on this project, giving the full `ex-
 from the exception you experienced. I don't guarantee I can fix it, because I don't
 have access to all platforms to test, but I will do my best.
 
+### Caution: Windows
+
+There doesn't seem to be a mechanism to retrieve just the real name of the user
+on a Windows system in locale-independent way.
+
+There must be some system call that Windows is using to localise the string 
+'Full Name', but I haven't found it. Consequently I'm using a map to do my own
+resolution of locale-specific translations of 'Full Name' into known translations
+used by Microsoft for different locales, but it is far from complete and may not
+be accurate.
+
+In this case the ex-data from the exception thrown will include both the `locale`
+and the `localised-key` used, and I need both of these to be able to resolve the
+problem.
+
 ## Invoking from Java
 
 As there doesn't seem to be a Java-native solution, you may want to use this
@@ -93,6 +109,12 @@ public class Main {
     }
 }
 ```
+
+## Policy on pull requests
+
+I obviously cannot test this on every possible platform. Pull requests which
+extend this to work on platforms I don't have access to will be gratefully
+received. 
 
 ## License
 
