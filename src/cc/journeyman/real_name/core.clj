@@ -33,7 +33,7 @@
   "Process this `gecos` field into a map of its sub-fields. See
    https://en.wikipedia.org/wiki/Gecos_field"
   [gecos]
-  (delimited-record->map gecos #"," [:real-name :address :work-phone :home-phone :other]))
+  (delimited-record->map (str gecos ",?") #"," [:real-name :address :work-phone :home-phone :other]))
 
 (defn process-passwd-line
   "Process this `line` from a passwd file"
