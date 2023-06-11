@@ -29,7 +29,7 @@ Add the following requirement to your namespace:
 
 ```clojure
 (ns your.fine.namespace
-  (:require [cc.journeyman.real-name :refer [get-real-name]]))
+  (:require [cc.journeyman.real-name.core :refer [get-real-name]]))
 ```
 
 Resolve usernames to real names by invoking `(get-real-name)`, either without 
